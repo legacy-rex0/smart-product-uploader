@@ -4,9 +4,28 @@
 <div class="max-w-4xl mx-auto">
     <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
         <div class="p-6 bg-white border-b border-gray-200">
+            <div class="flex flex-row w-full justify-between items-center space-x-3 mb-6">
+                <a href="{{ route('products.index') }}" class="text-blue-600 hover:text-blue-800">← Back </a>
+                <div class="flex items-center space-x-3">
+                    <a href="{{ route('products.edit', $product) }}" 
+                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                        <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Edit 
+                    </a>
+                    <button onclick="deleteProduct()" 
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700">
+                        <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                    </button>
+                    <!-- <a href="{{ route('products.index') }}" class="text-blue-600 hover:text-blue-800">← Back to Products</a> -->
+                </div>
+            </div>
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-2xl font-bold text-gray-900">Product Details</h2>
-                <a href="{{ route('products.index') }}" class="text-blue-600 hover:text-blue-800">← Back</a>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -104,4 +123,38 @@
         </div>
     </div>
 </div>
+
+@stack('scripts')
+<script>
+function deleteProduct() {
+    if (confirm('Are you sure you want to delete this product? This action cannot be undone.')) {
+        const deleteBtn = event.target;
+        const originalText = deleteBtn.textContent;
+        
+        deleteBtn.textContent = 'Deleting...';
+        deleteBtn.disabled = true;
+        
+        axios.delete('{{ route("products.destroy", $product) }}')
+        .then(function (response) {
+            if (response.data.success) {
+                alert('Product deleted successfully!');
+                window.location.href = '{{ route("products.index") }}';
+            } else {
+                alert('Error: ' + response.data.message);
+            }
+        })
+        .catch(function (error) {
+            let errorMessage = 'Failed to delete product';
+            if (error.response && error.response.data) {
+                errorMessage += ': ' + error.response.data.message;
+            }
+            alert(errorMessage);
+        })
+        .finally(function () {
+            deleteBtn.textContent = originalText;
+            deleteBtn.disabled = false;
+        });
+    }
+}
+</script>
 @endsection

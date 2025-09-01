@@ -123,6 +123,82 @@ class ProductController extends Controller
         return view('products.show', compact('product'));
     }
 
+    public function edit(Product $product)
+    {
+        return view('products.edit', compact('product'));
+    }
+
+    public function update(StoreProductRequest $request, Product $product): JsonResponse
+    {
+        try {
+            $productName = $request->input('name');
+            $description = $request->input('description');
+            $image = $request->file('image');
+
+            if (!$description) {
+                $description = $this->aiService->generateDescription($productName);
+            }
+
+            $imageUrl = $product->image_url;
+            $imagePath = $product->image_path;
+            $isAiGeneratedImage = $product->is_ai_generated_image;
+
+            if ($image) {
+                $uploadResult = $this->fileUploadService->uploadImage($image);
+                $imageUrl = $uploadResult['url'];
+                $imagePath = $uploadResult['path'];
+                $isAiGeneratedImage = false;
+            }
+
+            $product->update([
+                'name' => $productName,
+                'description' => $description,
+                'image_url' => $imageUrl,
+                'image_path' => $imagePath,
+                'is_ai_generated_description' => !$request->input('description'),
+                'is_ai_generated_image' => $isAiGeneratedImage,
+                'metadata' => [
+                    'ai_generated' => [
+                        'description' => !$request->input('description'),
+                        'image' => $isAiGeneratedImage
+                    ],
+                    'last_updated' => now()->toISOString()
+                ]
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Product updated successfully',
+                'product' => $product
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating product: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function destroy(Product $product): JsonResponse
+    {
+        try {
+            $productName = $product->name;
+            $product->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Product '{$productName}' deleted successfully"
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error deleting product: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function apiIndex()
     {
         $products = Product::latest()->paginate(20);
@@ -217,6 +293,77 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error during bulk upload: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function apiUpdate(StoreProductRequest $request, Product $product): JsonResponse
+    {
+        try {
+            $productName = $request->input('name');
+            $description = $request->input('description');
+            $image = $request->file('image');
+
+            if (!$description) {
+                $description = $this->aiService->generateDescription($productName);
+            }
+
+            $imageUrl = $product->image_url;
+            $imagePath = $product->image_path;
+            $isAiGeneratedImage = $product->is_ai_generated_image;
+
+            if ($image) {
+                $uploadResult = $this->fileUploadService->uploadImage($image);
+                $imageUrl = $uploadResult['url'];
+                $imagePath = $uploadResult['path'];
+                $isAiGeneratedImage = false;
+            }
+
+            $product->update([
+                'name' => $productName,
+                'description' => $description,
+                'image_url' => $imageUrl,
+                'image_path' => $imagePath,
+                'is_ai_generated_description' => !$request->input('description'),
+                'is_ai_generated_image' => $isAiGeneratedImage,
+                'metadata' => [
+                    'ai_generated' => [
+                        'description' => !$request->input('description'),
+                        'image' => $isAiGeneratedImage
+                    ],
+                    'last_updated' => now()->toISOString()
+                ]
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Product updated successfully',
+                'data' => $product
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating product: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function apiDestroy(Product $product): JsonResponse
+    {
+        try {
+            $productName = $product->name;
+            $product->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Product '{$productName}' deleted successfully"
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error deleting product: ' . $e->getMessage()
             ], 500);
         }
     }

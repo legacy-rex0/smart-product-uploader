@@ -26,6 +26,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Upload Method</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">AI Generated</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -72,6 +73,16 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {{ $product->created_at->format('M d, Y') }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex space-x-2">
+                                    <a href="{{ route('products.show', $product) }}" 
+                                       class="text-blue-600 hover:text-blue-900">View</a>
+                                    <a href="{{ route('products.edit', $product) }}" 
+                                       class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                                    <button onclick="deleteProduct({{ $product->id }}, '{{ $product->name }}')" 
+                                            class="text-red-600 hover:text-red-900">Delete</button>
+                                </div>
                             </td>
                         </tr>
                         @endforeach
@@ -179,5 +190,36 @@ document.getElementById('bulkUploadForm').addEventListener('submit', function(e)
         submitBtn.disabled = false;
     });
 });
+
+function deleteProduct(productId, productName) {
+    if (confirm(`Are you sure you want to delete '${productName}'? This action cannot be undone.`)) {
+        const deleteBtn = event.target;
+        const originalText = deleteBtn.textContent;
+        
+        deleteBtn.textContent = 'Deleting...';
+        deleteBtn.disabled = true;
+        
+        axios.delete(`/products/${productId}`)
+        .then(function (response) {
+            if (response.data.success) {
+                alert('Product deleted successfully!');
+                window.location.reload();
+            } else {
+                alert('Error: ' + response.data.message);
+            }
+        })
+        .catch(function (error) {
+            let errorMessage = 'Failed to delete product';
+            if (error.response && error.response.data) {
+                errorMessage += ': ' + error.response.data.message;
+            }
+            alert(errorMessage);
+        })
+        .finally(function () {
+            deleteBtn.textContent = originalText;
+            deleteBtn.disabled = false;
+        });
+    }
+}
 </script>
 @endsection
