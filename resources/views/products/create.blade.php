@@ -6,7 +6,7 @@
         <div class="p-6 bg-white border-b border-gray-200">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-2xl font-bold text-gray-900">Add New Product</h2>
-                <a href="{{ route('products.index') }}" class="text-blue-600 hover:text-blue-800">← Back to Products</a>
+                <a href="{{ route('products.index') }}" class="text-blue-600 hover:text-blue-800">← Back</a>
             </div>
 
             <form id="productForm" enctype="multipart/form-data">
@@ -25,14 +25,14 @@
                         <textarea name="description" id="description" rows="4" 
                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                   placeholder="Enter product description (optional - AI will generate if left empty)"></textarea>
-                        <p class="mt-1 text-sm text-gray-500">Leave empty to generate description using AI</p>
+                        <p class="mt-1 text-[12px] text-gray-500">Leave empty to generate description using AI</p>
                     </div>
 
                     <div>
                         <label for="image" class="block text-sm font-medium text-gray-700">Product Image</label>
                         <input type="file" name="image" id="image" accept="image/*" 
                                class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                        <p class="mt-1 text-sm text-gray-500">Leave empty to generate image using AI</p>
+                        <p class="mt-1 text-[12px] text-gray-500">Leave empty to generate image using AI</p>
                     </div>
 
                     <div class="bg-blue-50 border border-blue-200 rounded-md p-4">

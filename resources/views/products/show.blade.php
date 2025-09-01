@@ -6,7 +6,7 @@
         <div class="p-6 bg-white border-b border-gray-200">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-2xl font-bold text-gray-900">Product Details</h2>
-                <a href="{{ route('products.index') }}" class="text-blue-600 hover:text-blue-800">← Back to Products</a>
+                <a href="{{ route('products.index') }}" class="text-blue-600 hover:text-blue-800">← Back</a>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
