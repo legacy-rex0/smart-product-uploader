@@ -2,10 +2,9 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\DashboardController;
 
-Route::get('/', function () {
-    return redirect()->route('products.index');
-});
+Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
 Route::resource('products', ProductController::class)->except(['edit', 'update', 'destroy']);
 Route::post('products/bulk-upload', [ProductController::class, 'bulkUpload'])->name('products.bulk-upload');

@@ -14,20 +14,33 @@ class AIService
     {
         $this->openaiApiKey = config('services.openai.api_key');
         $this->openaiBaseUrl = config('services.openai.base_url', 'https://api.openai.com/v1');
+
+        Log::info('AIService initialized', [
+            'has_api_key' => !empty($this->openaiApiKey),
+            'api_key_length' => strlen($this->openaiApiKey ?? ''),
+            'base_url' => $this->openaiBaseUrl
+        ]);
     }
 
     public function generateDescription(string $productName): ?string
     {
+        Log::info('Generating description for product', ['product_name' => $productName]);
+        
         if (!$this->openaiApiKey) {
             Log::warning('OpenAI API key not configured, using mock description');
             return $this->getMockDescription($productName);
         }
 
         try {
+            Log::info('Making OpenAI API request for description', [
+                'url' => $this->openaiBaseUrl . '/chat/completions',
+                'model' => 'gpt-3.5-turbo'
+            ]);
+
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->openaiApiKey,
                 'Content-Type' => 'application/json',
-            ])->post($this->openaiBaseUrl . '/chat/completions', [
+            ])->timeout(30)->post($this->openaiBaseUrl . '/chat/completions', [
                 'model' => 'gpt-3.5-turbo',
                 'messages' => [
                     [
@@ -43,44 +56,106 @@ class AIService
                 'temperature' => 0.7
             ]);
 
+            Log::info('OpenAI API response received', [
+                'status' => $response->status(),
+                'success' => $response->successful()
+            ]);
+
             if ($response->successful()) {
-                return $response->json('choices.0.message.content');
+                $content = $response->json('choices.0.message.content');
+                Log::info('Description generated successfully', ['content_length' => strlen($content)]);
+                return $content;
             }
 
-            Log::error('OpenAI API error', ['response' => $response->body()]);
+            $errorResponse = $response->json();
+            $errorMessage = $errorResponse['error']['message'] ?? 'Unknown error';
+            
+            if ($response->status() === 429 || str_contains($errorMessage, 'quota') || str_contains($errorMessage, 'billing')) {
+                Log::warning('OpenAI API quota exceeded, using mock description', [
+                    'status' => $response->status(),
+                    'error' => $errorMessage
+                ]);
+            } else {
+                Log::error('OpenAI API error', [
+                    'status' => $response->status(),
+                    'response' => $response->body(),
+                    'headers' => $response->headers()
+                ]);
+            }
+            
             return $this->getMockDescription($productName);
         } catch (\Exception $e) {
-            Log::error('OpenAI API exception', ['error' => $e->getMessage()]);
+            Log::error('OpenAI API exception', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return $this->getMockDescription($productName);
         }
     }
 
     public function generateImage(string $productName): ?string
     {
+        Log::info('Generating image for product', ['product_name' => $productName]);
+        
         if (!$this->openaiApiKey) {
             Log::warning('OpenAI API key not configured, using mock image');
             return $this->getMockImageUrl($productName);
         }
 
         try {
+            Log::info('Making OpenAI DALL-E API request', [
+                'url' => $this->openaiBaseUrl . '/images/generations',
+                'prompt' => "Professional product photography of {$productName}, clean background, high quality, commercial use"
+            ]);
+
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->openaiApiKey,
                 'Content-Type' => 'application/json',
-            ])->post($this->openaiBaseUrl . '/images/generations', [
+            ])->timeout(30)->post($this->openaiBaseUrl . '/images/generations', [
                 'prompt' => "Professional product photography of {$productName}, clean background, high quality, commercial use",
                 'n' => 1,
                 'size' => '1024x1024',
                 'response_format' => 'url'
             ]);
 
+            Log::info('OpenAI DALL-E API response received', [
+                'status' => $response->status(),
+                'success' => $response->successful()
+            ]);
+
             if ($response->successful()) {
-                return $response->json('data.0.url');
+                $imageUrl = $response->json('data.0.url');
+                Log::info('Image generated successfully', ['image_url' => $imageUrl]);
+                return $imageUrl;
             }
 
-            Log::error('OpenAI DALL-E API error', ['response' => $response->body()]);
+            $errorResponse = $response->json();
+            $errorMessage = $errorResponse['error']['message'] ?? 'Unknown error';
+            
+            if ($response->status() === 429 || str_contains($errorMessage, 'quota') || str_contains($errorMessage, 'billing')) {
+                Log::warning('OpenAI DALL-E API quota exceeded, using mock image', [
+                    'status' => $response->status(),
+                    'error' => $errorMessage
+                ]);
+            } elseif ($response->status() >= 500) {
+                Log::warning('OpenAI DALL-E API server error, using mock image', [
+                    'status' => $response->status(),
+                    'error' => $errorMessage
+                ]);
+            } else {
+                Log::error('OpenAI DALL-E API error', [
+                    'status' => $response->status(),
+                    'response' => $response->body(),
+                    'headers' => $response->headers()
+                ]);
+            }
+            
             return $this->getMockImageUrl($productName);
         } catch (\Exception $e) {
-            Log::error('OpenAI DALL-E API exception', ['error' => $e->getMessage()]);
+            Log::error('OpenAI DALL-E API exception', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return $this->getMockImageUrl($productName);
         }
     }
@@ -98,10 +173,14 @@ class AIService
 
     private function getMockImageUrl(string $productName): string
     {
-        $colors = ['red', 'blue', 'green', 'purple', 'orange'];
-        $color = $colors[array_rand($colors)];
-        $size = '400x400';
+        $services = [
+            "https://picsum.photos/400/400?random=" . rand(1, 1000),
+            "https://source.unsplash.com/400x400/?product," . urlencode($productName),
+            "https://via.placeholder.com/400x400/4F46E5/ffffff?text=" . urlencode($productName),
+            "https://via.placeholder.com/400x400/059669/ffffff?text=" . urlencode($productName),
+            "https://via.placeholder.com/400x400/DC2626/ffffff?text=" . urlencode($productName)
+        ];
         
-        return "https://via.placeholder.com/{$size}/{$color}/ffffff?text=" . urlencode($productName);
+        return $services[array_rand($services)];
     }
 }
