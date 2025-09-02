@@ -1,0 +1,78 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+
+# Development files
+# .env  # Commented out to allow .env files in Docker build
+.env.*
+!.env.example
+.editorconfig
+.phpunit.xml
+phpunit.xml
+tests/
+tests
+
+# Node modules and build artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# Laravel specific
+storage/app/public/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+bootstrap/cache/*
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Composer
+vendor/
+composer.phar
+
+# Database
+*.sqlite
+*.sqlite3
+database/*.sqlite*
+
+# Cache
+.cache/
+.cache
+
+# Build artifacts
+public/build/
+public/hot/
+public/storage/
