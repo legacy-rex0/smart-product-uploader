@@ -36,7 +36,6 @@ A Laravel-based system that allows for two methods of product uploading with AI-
 
 - **Laravel 12** with modern PHP practices
 - **TailwindCSS** for responsive UI
-- **Vue.js 3** for interactive components
 - **Excel import/export** with Maatwebsite Excel
 - **Clean Architecture** with service classes
 - **Database migrations** and models
@@ -51,7 +50,6 @@ A Laravel-based system that allows for two methods of product uploading with AI-
 - PHP 8.2+
 - Composer
 - SQLite (default) or MySQL/PostgreSQL
-- Node.js (for frontend assets)
 
 ### Setup
 
@@ -88,6 +86,7 @@ A Laravel-based system that allows for two methods of product uploading with AI-
    AWS_SECRET_ACCESS_KEY=your_aws_secret_key
    AWS_DEFAULT_REGION=us-east-1
    AWS_BUCKET=your_s3_bucket_name
+   AWS_ENDPOINTS=
    FILESYSTEM_DISK=s3
    ```
 
@@ -203,6 +202,7 @@ AWS_ACCESS_KEY_ID=your_access_key
 AWS_SECRET_ACCESS_KEY=your_secret_key
 AWS_DEFAULT_REGION=us-east-1
 AWS_BUCKET=your_bucket_name
+AWS_ENDPOINTS=
 FILESYSTEM_DISK=s3
 ```
 
@@ -213,49 +213,6 @@ When API keys are not configured:
 - **Images**: Generated from placeholder services
 - **Storage**: Uses local storage
 
-## File Structure
-
-```
-app/
-├── Http/Controllers/
-│   └── ProductController.php
-├── Models/
-│   └── Product.php
-├── Services/
-│   ├── AIService.php
-│   └── FileUploadService.php
-└── Imports/
-    └── ProductsImport.php
-
-resources/views/
-├── layouts/
-│   └── app.blade.php
-└── products/
-    ├── index.blade.php
-    ├── create.blade.php
-    └── show.blade.php
-
-database/migrations/
-└── create_products_table.php
-```
-
-## Database Schema
-
-### Products Table
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | bigint | Primary key |
-| name | string | Product name |
-| description | text | Product description |
-| image_url | string | Image URL |
-| image_path | string | Local image path |
-| is_ai_generated_description | boolean | AI description flag |
-| is_ai_generated_image | boolean | AI image flag |
-| upload_method | string | Manual or Excel |
-| metadata | json | Additional data |
-| created_at | timestamp | Creation time |
-| updated_at | timestamp | Update time |
 
 ## Development
 
@@ -273,11 +230,6 @@ database/migrations/
 php artisan test
 ```
 
-### Code Quality
-
-```bash
-php artisan pint
-```
 
 ## Troubleshooting
 
@@ -310,18 +262,6 @@ Check Laravel logs for detailed error information:
 tail -f storage/logs/laravel.log
 ```
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-This project is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
-
 ## Support
 
 For support and questions:
@@ -330,5 +270,3 @@ For support and questions:
 - Review the code examples
 
 ---
-
-**Built with ❤️ using Laravel and modern web technologies**
