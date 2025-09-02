@@ -9,10 +9,9 @@ use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Concerns\SkipsOnError;
-use Maatwebsite\Excel\Concerns\SkipsErrors;
 use Illuminate\Support\Facades\Log;
 
-class ProductsImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnError, SkipsErrors
+class ProductsImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnError
 {
     private $aiService;
     private $fileUploadService;
@@ -86,7 +85,6 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation, SkipsOn
     {
         return [
             'product_name' => 'required|string|max:255',
-            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'image_url' => 'nullable|string'
         ];
@@ -100,5 +98,14 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation, SkipsOn
     public function getSuccessCount(): int
     {
         return $this->successCount;
+    }
+
+    public function onError(\Throwable $e)
+    {
+        $this->errors[] = "Import error: " . $e->getMessage();
+        Log::error('Excel import error', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ]);
     }
 }

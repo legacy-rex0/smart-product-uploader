@@ -34,13 +34,14 @@ class AIService
         try {
             Log::info('Making OpenAI API request for description', [
                 'url' => $this->openaiBaseUrl . '/chat/completions',
-                'model' => 'gpt-3.5-turbo'
+                'model' => 'gpt-3.5-turbo',
+                'product_name' => $productName
             ]);
 
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->openaiApiKey,
                 'Content-Type' => 'application/json',
-            ])->timeout(30)->post($this->openaiBaseUrl . '/chat/completions', [
+            ])->timeout(15)->post($this->openaiBaseUrl . '/chat/completions', [
                 'model' => 'gpt-3.5-turbo',
                 'messages' => [
                     [
@@ -58,12 +59,16 @@ class AIService
 
             Log::info('OpenAI API response received', [
                 'status' => $response->status(),
-                'success' => $response->successful()
+                'success' => $response->successful(),
+                'product_name' => $productName
             ]);
 
             if ($response->successful()) {
                 $content = $response->json('choices.0.message.content');
-                Log::info('Description generated successfully', ['content_length' => strlen($content)]);
+                Log::info('Description generated successfully', [
+                    'content_length' => strlen($content),
+                    'product_name' => $productName
+                ]);
                 return $content;
             }
 
@@ -73,13 +78,14 @@ class AIService
             if ($response->status() === 429 || str_contains($errorMessage, 'quota') || str_contains($errorMessage, 'billing')) {
                 Log::warning('OpenAI API quota exceeded, using mock description', [
                     'status' => $response->status(),
-                    'error' => $errorMessage
+                    'error' => $errorMessage,
+                    'product_name' => $productName
                 ]);
             } else {
                 Log::error('OpenAI API error', [
                     'status' => $response->status(),
-                    'response' => $response->body(),
-                    'headers' => $response->headers()
+                    'error' => $errorMessage,
+                    'product_name' => $productName
                 ]);
             }
             
@@ -87,7 +93,7 @@ class AIService
         } catch (\Exception $e) {
             Log::error('OpenAI API exception', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'product_name' => $productName
             ]);
             return $this->getMockDescription($productName);
         }
@@ -105,13 +111,14 @@ class AIService
         try {
             Log::info('Making OpenAI DALL-E API request', [
                 'url' => $this->openaiBaseUrl . '/images/generations',
-                'prompt' => "Professional product photography of {$productName}, clean background, high quality, commercial use"
+                'prompt' => "Professional product photography of {$productName}, clean background, high quality, commercial use",
+                'product_name' => $productName
             ]);
 
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->openaiApiKey,
                 'Content-Type' => 'application/json',
-            ])->timeout(30)->post($this->openaiBaseUrl . '/images/generations', [
+            ])->timeout(15)->post($this->openaiBaseUrl . '/images/generations', [
                 'prompt' => "Professional product photography of {$productName}, clean background, high quality, commercial use",
                 'n' => 1,
                 'size' => '1024x1024',
@@ -120,12 +127,16 @@ class AIService
 
             Log::info('OpenAI DALL-E API response received', [
                 'status' => $response->status(),
-                'success' => $response->successful()
+                'success' => $response->successful(),
+                'product_name' => $productName
             ]);
 
             if ($response->successful()) {
                 $imageUrl = $response->json('data.0.url');
-                Log::info('Image generated successfully', ['image_url' => $imageUrl]);
+                Log::info('Image generated successfully', [
+                    'image_url' => $imageUrl,
+                    'product_name' => $productName
+                ]);
                 return $imageUrl;
             }
 
@@ -135,18 +146,20 @@ class AIService
             if ($response->status() === 429 || str_contains($errorMessage, 'quota') || str_contains($errorMessage, 'billing')) {
                 Log::warning('OpenAI DALL-E API quota exceeded, using mock image', [
                     'status' => $response->status(),
-                    'error' => $errorMessage
+                    'error' => $errorMessage,
+                    'product_name' => $productName
                 ]);
             } elseif ($response->status() >= 500) {
                 Log::warning('OpenAI DALL-E API server error, using mock image', [
                     'status' => $response->status(),
-                    'error' => $errorMessage
+                    'error' => $errorMessage,
+                    'product_name' => $productName
                 ]);
             } else {
                 Log::error('OpenAI DALL-E API error', [
                     'status' => $response->status(),
-                    'response' => $response->body(),
-                    'headers' => $response->headers()
+                    'error' => $errorMessage,
+                    'product_name' => $productName
                 ]);
             }
             
@@ -154,7 +167,7 @@ class AIService
         } catch (\Exception $e) {
             Log::error('OpenAI DALL-E API exception', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'product_name' => $productName
             ]);
             return $this->getMockImageUrl($productName);
         }

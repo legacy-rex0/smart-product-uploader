@@ -10,7 +10,12 @@ use App\Imports\ProductsImport;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\BulkUploadRequest;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Jobs\ProcessBulkProductUpload;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
@@ -94,26 +99,197 @@ class ProductController extends Controller
 
     public function bulkUpload(BulkUploadRequest $request): JsonResponse
     {
-
         try {
-            $import = new ProductsImport();
+            $file = $request->file('excel_file');
             
-            Excel::import($import, $request->file('excel_file'));
+            // Debug file information
+            \Log::info('File upload details', [
+                'original_name' => $file->getClientOriginalName(),
+                'size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+                'extension' => $file->getClientOriginalExtension(),
+                'temp_path' => $file->getPathname(),
+                'temp_exists' => file_exists($file->getPathname())
+            ]);
+            
+            // Validate file size (10MB max)
+            if ($file->getSize() > 10 * 1024 * 1024) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File size exceeds 10MB limit'
+                ], 400);
+            }
+            
+            // Additional file type validation
+            $allowedExtensions = ['xlsx', 'xls', 'csv', 'txt'];
+            $fileExtension = strtolower($file->getClientOriginalExtension());
+            
+            if (!in_array($fileExtension, $allowedExtensions)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File type not supported. Please use .xlsx, .xls, .csv, or .txt files.'
+                ], 400);
+            }
+            
+            // Store file in a more reliable location
+            $filePath = $file->store('bulk-uploads', 'local');
+            
+            // Debug storage result
+            \Log::info('File storage result', [
+                'stored_path' => $filePath,
+                'full_path' => storage_path('app/' . $filePath),
+                'file_exists' => file_exists(storage_path('app/' . $filePath)),
+                'bulk_uploads_dir_contents' => array_diff(scandir(storage_path('app/bulk-uploads')), ['.', '..'])
+            ]);
 
-            $successCount = $import->getSuccessCount();
-            $errors = $import->getErrors();
+            // Verify the file was stored successfully
+            $fullPath = storage_path('app/' . $filePath);
+            if (!file_exists($fullPath)) {
+                \Log::error('File storage failed', [
+                    'file_path' => $filePath,
+                    'full_path' => $fullPath,
+                    'bulk_uploads_dir_exists' => is_dir(storage_path('app/bulk-uploads')),
+                    'bulk_uploads_dir_writable' => is_writable(storage_path('app/bulk-uploads'))
+                ]);
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error: File was not stored successfully'
+                ], 500);
+            }
+
+            // Check if queue is ready
+            $pendingJobs = DB::table('jobs')->count();
+            if ($pendingJobs > 0) {
+                \Log::warning('Queue has pending jobs', ['pending_jobs' => $pendingJobs]);
+            }
+
+            // Create a unique job ID
+            $jobId = 'bulk_upload_' . time() . '_' . uniqid();
+            
+            // Dispatch the job with the correct file path
+            $job = ProcessBulkProductUpload::dispatch($filePath, Auth::id() ?? null, $jobId);
+
+            \Log::info('Bulk upload job dispatched successfully', [
+                'job_id' => $jobId,
+                'file_path' => $filePath,
+                'file_extension' => $fileExtension,
+                'pending_jobs_after_dispatch' => DB::table('jobs')->count()
+            ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Bulk upload completed. {$successCount} products imported successfully.",
-                'success_count' => $successCount,
-                'errors' => $errors
+                'message' => 'Bulk upload started successfully. You can track progress below.',
+                'data' => [
+                    'file_path' => $filePath,
+                    'job_id' => $jobId,
+                    'file_type' => $fileExtension,
+                    'tracking_url' => route('products.bulk-upload-progress', $jobId),
+                    'queue_status' => [
+                        'pending_jobs' => DB::table('jobs')->count(),
+                        'queue_ready' => DB::table('jobs')->count() === 0
+                    ]
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Bulk upload error', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Error starting bulk upload: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function bulkUploadProgress($jobId): JsonResponse
+    {
+        try {
+            $progress = Cache::get("bulk_upload_progress_{$jobId}");
+            $results = Cache::get("bulk_upload_results_{$jobId}");
+
+            // Debug information
+            $debug = [
+                'job_id' => $jobId,
+                'progress_cache_key' => "bulk_upload_progress_{$jobId}",
+                'results_cache_key' => "bulk_upload_results_{$jobId}",
+                'progress_exists' => $progress ? true : false,
+                'results_exists' => $results ? true : false,
+                'cache_driver' => config('cache.default'),
+                'timestamp' => now()->toISOString()
+            ];
+
+            if (!$progress && !$results) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Job not found or expired',
+                    'debug' => $debug
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'progress' => $progress,
+                    'results' => $results,
+                    'debug' => $debug
+                ]
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error during bulk upload: ' . $e->getMessage()
+                'message' => 'Error fetching progress: ' . $e->getMessage(),
+                'debug' => [
+                    'job_id' => $jobId,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]
+            ], 500);
+        }
+    }
+
+    public function queueStatus(): JsonResponse
+    {
+        try {
+            $pendingJobs = DB::table('jobs')->count();
+            $failedJobs = DB::table('failed_jobs')->count();
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'pending_jobs' => $pendingJobs,
+                    'failed_jobs' => $failedJobs,
+                    'queue_ready' => $pendingJobs === 0,
+                    'timestamp' => now()->toISOString()
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error checking queue status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function startQueueWorker(): JsonResponse
+    {
+        try {
+            // This is a simple implementation - in production you might want to use supervisor or similar
+            $command = 'php ' . base_path('artisan') . ' queue:work --daemon > /dev/null 2>&1 &';
+            exec($command);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Queue worker started successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error starting queue worker: ' . $e->getMessage()
             ], 500);
         }
     }

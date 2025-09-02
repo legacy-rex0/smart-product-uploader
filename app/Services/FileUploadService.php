@@ -15,11 +15,8 @@ class FileUploadService
             $filename = $this->generateUniqueFilename($file);
             $path = $directory . '/' . $filename;
 
-            if ($this->shouldUseS3()) {
-                return $this->uploadToS3($file, $path);
-            } else {
-                return $this->uploadToLocal($file, $path);
-            }
+            // Always use local storage for now to ensure images are accessible
+            return $this->uploadToLocal($file, $path);
         } catch (\Exception $e) {
             Log::error('File upload failed', ['error' => $e->getMessage()]);
             throw $e;
@@ -32,11 +29,8 @@ class FileUploadService
             $filename = $this->generateUniqueFilenameFromUrl($imageUrl);
             $path = $directory . '/' . $filename;
 
-            if ($this->shouldUseS3()) {
-                return $this->uploadUrlToS3($imageUrl, $path);
-            } else {
-                return $this->uploadUrlToLocal($imageUrl, $path);
-            }
+            // Always use local storage for now to ensure images are accessible
+            return $this->uploadUrlToLocal($imageUrl, $path);
         } catch (\Exception $e) {
             Log::error('URL image upload failed', ['error' => $e->getMessage()]);
             throw $e;
@@ -45,9 +39,13 @@ class FileUploadService
 
     private function shouldUseS3(): bool
     {
-        return config('filesystems.default') === 's3' && 
-               config('filesystems.disks.s3.key') && 
-               config('filesystems.disks.s3.secret');
+        // Temporarily disable S3 to ensure all uploads go to local storage
+        return false;
+        
+        // Original logic (commented out for now):
+        // return config('filesystems.default') === 's3' && 
+        //        config('filesystems.disks.s3.key') && 
+        //        config('filesystems.disks.s3.secret');
     }
 
     private function uploadToS3(UploadedFile $file, string $path): array
@@ -90,14 +88,52 @@ class FileUploadService
     private function uploadUrlToLocal(string $imageUrl, string $path): array
     {
         $disk = Storage::disk('public');
-        $imageContent = file_get_contents($imageUrl);
-        $disk->put($path, $imageContent);
+        
+        try {
+            $imageContent = file_get_contents($imageUrl);
+            if ($imageContent === false) {
+                throw new \Exception("Failed to download image from URL: {$imageUrl}");
+            }
+            
+            $disk->put($path, $imageContent);
+        } catch (\Exception $e) {
+            Log::warning("Failed to download image from URL, using placeholder", [
+                'url' => $imageUrl,
+                'error' => $e->getMessage()
+            ]);
+            
+            // If we can't download the image, create a placeholder
+            $path = $this->createPlaceholderImage($path);
+        }
 
         return [
             'path' => $path,
             'url' => config('app.url') . '/storage/' . $path,
             'storage' => 'local'
         ];
+    }
+
+    private function createPlaceholderImage(string $originalPath): string
+    {
+        // Create a simple placeholder image path
+        $extension = pathinfo($originalPath, PATHINFO_EXTENSION) ?: 'png';
+        $placeholderPath = 'products/placeholder_' . time() . '_' . Str::random(8) . '.' . $extension;
+        
+        // For now, we'll use a placeholder service URL
+        // In production, you might want to generate an actual placeholder image
+        $placeholderUrl = "https://via.placeholder.com/400x400/6B7280/FFFFFF?text=Image+Unavailable";
+        
+        try {
+            $imageContent = file_get_contents($placeholderUrl);
+            if ($imageContent !== false) {
+                Storage::disk('public')->put($placeholderPath, $imageContent);
+                return $placeholderPath;
+            }
+        } catch (\Exception $e) {
+            Log::error("Failed to create placeholder image", ['error' => $e->getMessage()]);
+        }
+        
+        return $originalPath;
     }
 
     private function generateUniqueFilename(UploadedFile $file): string
