@@ -22,6 +22,11 @@ class ProductsImport implements ToModel, WithHeadingRow, WithValidation, SkipsOn
     {
         $this->aiService = new AIService();
         $this->fileUploadService = new FileUploadService();
+        
+        // Enable S3 preference if S3 is available
+        if ($this->fileUploadService->shouldUseS3() || $this->fileUploadService->isS3Available()) {
+            $this->fileUploadService->setPersistentS3Preference(true);
+        }
     }
 
     public function model(array $row)

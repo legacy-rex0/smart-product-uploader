@@ -26,6 +26,11 @@ class ProductController extends Controller
     {
         $this->aiService = new AIService();
         $this->fileUploadService = new FileUploadService();
+        
+        // Enable S3 preference if S3 is available
+        if ($this->fileUploadService->isS3Available()) {
+            $this->fileUploadService->preferS3(true);
+        }
     }
 
     public function index()
@@ -58,6 +63,11 @@ class ProductController extends Controller
                 $uploadResult = $this->fileUploadService->uploadImage($image);
                 $imageUrl = $uploadResult['url'];
                 $imagePath = $uploadResult['path'];
+            } elseif ($request->input('image_url')) {
+                // Use provided image URL
+                $imageUrl = $request->input('image_url');
+                $imagePath = null;
+                $isAiGeneratedImage = false;
             } else {
                 $imageUrl = $this->aiService->generateImage($productName);
                 $isAiGeneratedImage = true;
@@ -324,6 +334,11 @@ class ProductController extends Controller
                 $imageUrl = $uploadResult['url'];
                 $imagePath = $uploadResult['path'];
                 $isAiGeneratedImage = false;
+            } elseif ($request->input('image_url')) {
+                // Use provided image URL
+                $imageUrl = $request->input('image_url');
+                $imagePath = null;
+                $isAiGeneratedImage = false;
             }
 
             $product->update([
@@ -411,6 +426,11 @@ class ProductController extends Controller
                 $uploadResult = $this->fileUploadService->uploadImage($image);
                 $imageUrl = $uploadResult['url'];
                 $imagePath = $uploadResult['path'];
+            } elseif ($request->input('image_url')) {
+                // Use provided image URL
+                $imageUrl = $request->input('image_url');
+                $imagePath = null;
+                $isAiGeneratedImage = false;
             } else {
                 $imageUrl = $this->aiService->generateImage($productName);
                 $isAiGeneratedImage = true;
@@ -540,6 +560,36 @@ class ProductController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Error deleting product: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get current storage configuration status
+     */
+    public function getStorageStatus(): JsonResponse
+    {
+        try {
+            $storageInfo = $this->fileUploadService->getStorageInfo();
+            $s3Preference = $this->fileUploadService->getS3Preference();
+            $shouldUseS3 = $this->fileUploadService->shouldUseS3();
+            $isS3Available = $this->fileUploadService->isS3Available();
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'storage_info' => $storageInfo,
+                    's3_preference' => $s3Preference,
+                    'should_use_s3' => $shouldUseS3,
+                    'is_s3_available' => $isS3Available,
+                    'current_storage_method' => $shouldUseS3 ? 's3' : 'local'
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to get storage status',
+                'error' => $e->getMessage()
             ], 500);
         }
     }

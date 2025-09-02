@@ -86,30 +86,24 @@ class FixExpiredImageUrls extends Command
     {
         $azureUrl = $product->image_url;
         
-        $this->info("Processing product {$product->id}: {$product->name}");
-        
         // Check if we already have a local image path
         if ($product->image_path && !$this->option('force')) {
             $localPath = storage_path('app/public/' . $product->image_path);
             if (file_exists($localPath)) {
-                $this->info("  -> Skipping (local image exists)");
                 return 'skipped';
             }
         }
         
         try {
-            $this->info("  -> Attempting to download from Azure URL...");
             // Try to download the image from Azure
             $imageContent = file_get_contents($azureUrl);
             
             if ($imageContent === false) {
-                $this->info("  -> Download failed, creating placeholder...");
                 // If download fails, create a placeholder
                 $this->createPlaceholderForProduct($product);
                 return 'success';
             }
             
-            $this->info("  -> Download successful, storing locally...");
             // Generate a new filename
             $extension = $this->getExtensionFromUrl($azureUrl);
             $filename = 'product_' . $product->id . '_' . time() . '_' . uniqid() . '.' . $extension;
@@ -124,11 +118,9 @@ class FixExpiredImageUrls extends Command
                 'image_path' => $path
             ]);
             
-            $this->info("  -> Successfully stored and updated product");
             return 'success';
             
         } catch (\Exception $e) {
-            $this->error("  -> Exception occurred: " . $e->getMessage());
             // If anything fails, create a placeholder
             $this->createPlaceholderForProduct($product);
             return 'success';
@@ -137,27 +129,19 @@ class FixExpiredImageUrls extends Command
     
     private function createPlaceholderForProduct(Product $product): void
     {
-        $this->info("    -> Creating placeholder for product {$product->id}");
-        
         try {
             $filename = 'placeholder_' . $product->id . '_' . time() . '_' . uniqid() . '.png';
             $path = 'products/' . $filename;
             
-            $this->info("    -> Creating simple placeholder image at: {$path}");
-            
             // Create a simple text-based placeholder image
             $this->createSimplePlaceholderImage($product->name, $path);
             
-            $this->info("    -> Updating product with new image path");
             $product->update([
                 'image_url' => config('app.url') . '/storage/' . $path,
                 'image_path' => $path
             ]);
             
-            $this->info("    -> Placeholder created and product updated successfully");
-            
         } catch (\Exception $e) {
-            $this->error("    -> Exception creating placeholder: " . $e->getMessage());
             Log::error("Failed to create placeholder for product {$product->id}", [
                 'error' => $e->getMessage()
             ]);

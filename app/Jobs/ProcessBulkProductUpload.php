@@ -400,7 +400,7 @@ class ProcessBulkProductUpload implements ShouldQueue
 
     protected function getFallbackImageUrl($productName)
     {
-        return "https://via.placeholder.com/400x400/cccccc/666666?text=" . urlencode($productName);
+        return "https://placehold.co/400x400?text=" . urlencode($productName);
     }
 
     protected function createInitialProgress()

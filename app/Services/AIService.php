@@ -41,7 +41,7 @@ class AIService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->openaiApiKey,
                 'Content-Type' => 'application/json',
-            ])->timeout(15)->post($this->openaiBaseUrl . '/chat/completions', [
+            ])->timeout(30)->post($this->openaiBaseUrl . '/chat/completions', [
                 'model' => 'gpt-3.5-turbo',
                 'messages' => [
                     [
@@ -118,7 +118,7 @@ class AIService
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $this->openaiApiKey,
                 'Content-Type' => 'application/json',
-            ])->timeout(15)->post($this->openaiBaseUrl . '/images/generations', [
+            ])->timeout(30)->post($this->openaiBaseUrl . '/images/generations', [
                 'prompt' => "Professional product photography of {$productName}, clean background, high quality, commercial use",
                 'n' => 1,
                 'size' => '1024x1024',
@@ -189,9 +189,9 @@ class AIService
         $services = [
             "https://picsum.photos/400/400?random=" . rand(1, 1000),
             "https://source.unsplash.com/400x400/?product," . urlencode($productName),
-            "https://via.placeholder.com/400x400/4F46E5/ffffff?text=" . urlencode($productName),
-            "https://via.placeholder.com/400x400/059669/ffffff?text=" . urlencode($productName),
-            "https://via.placeholder.com/400x400/DC2626/ffffff?text=" . urlencode($productName)
+            "https://placehold.co/400x400?text=" . urlencode($productName),
+            "https://placehold.co/400x400?text=" . urlencode($productName),
+            "https://placehold.co/400x400?text=" . urlencode($productName)
         ];
         
         return $services[array_rand($services)];
